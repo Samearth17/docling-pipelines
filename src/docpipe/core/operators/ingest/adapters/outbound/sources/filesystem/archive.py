@@ -81,13 +81,13 @@ def list_archive_entries(archive_path: Path) -> list[ArchiveEntry]:
 def read_archive_uri(uri: str) -> bytes:
     """Read one archive member in memory without writing temporary files."""
     archive_path, entry_name = parse_archive_uri(uri)
-    archive_data = archive_path.read_bytes()
     extension = archive_extension(archive_path)
 
     if extension == ".zip":
-        with zipfile.ZipFile(io.BytesIO(archive_data)) as archive:
+        with zipfile.ZipFile(archive_path) as archive:
             return archive.read(entry_name)
 
+    archive_data = archive_path.read_bytes()
     if extension in {".tar", ".tar.gz", ".tgz"}:
         with tarfile.open(fileobj=io.BytesIO(archive_data), mode="r:*") as archive:
             member = archive.getmember(entry_name)

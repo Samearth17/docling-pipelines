@@ -260,7 +260,7 @@ class TestFilesystemSourceAdapter:
         assert doc.metadata["relative_path"] == "doc.txt"
         assert doc.metadata["archive_depth"] == 0
 
-    def test_fetch_documents_expands_zip_lazily_and_preserves_nested_archive(self, tmp_path):
+    def test_fetch_documents_expands_zip_lazily_and_preserves_nested_archive(self, tmp_path, monkeypatch):
         inner_bytes = io.BytesIO()
         with zipfile.ZipFile(inner_bytes, mode="w") as nested:
             nested.writestr("inside.txt", b"nested")
@@ -291,6 +291,11 @@ class TestFilesystemSourceAdapter:
         assert docs[0].metadata["archive_entry"] == "folder/report.txt"
         assert docs[0].source_url == docs[0].metadata["source_id"]
         assert "%23" in docs[0].source_url
+
+        def fail_if_archive_is_materialized(_path):
+            raise AssertionError("ZIP archives must not be loaded into memory in full")
+
+        monkeypatch.setattr(type(archive_path), "read_bytes", fail_if_archive_is_materialized)
         assert adapter.fetch_binary_content(source_id=docs[0].source_url, provider_config={}) == b"report"
         assert adapter.fetch_binary_content(source_id=docs[1].source_url, provider_config={}) == inner_bytes.getvalue()
 
