@@ -1,7 +1,6 @@
 """Archive helpers for lazy filesystem ingestion."""
 
 import gzip
-import io
 import tarfile
 import zipfile
 from dataclasses import dataclass
@@ -87,9 +86,8 @@ def read_archive_uri(uri: str) -> bytes:
         with zipfile.ZipFile(archive_path) as archive:
             return archive.read(entry_name)
 
-    archive_data = archive_path.read_bytes()
     if extension in {".tar", ".tar.gz", ".tgz"}:
-        with tarfile.open(fileobj=io.BytesIO(archive_data), mode="r:*") as archive:
+        with tarfile.open(archive_path, mode="r:*") as archive:
             member = archive.getmember(entry_name)
             extracted = archive.extractfile(member)
             if extracted is None:
@@ -100,7 +98,7 @@ def read_archive_uri(uri: str) -> bytes:
         expected_name = archive_path.name.removesuffix(".gz")
         if entry_name != expected_name:
             raise KeyError(entry_name)
-        with gzip.GzipFile(fileobj=io.BytesIO(archive_data)) as archive:
+        with gzip.open(archive_path, mode="rb") as archive:
             return archive.read()
 
     raise ValueError(f"Unsupported archive format: {archive_path}")

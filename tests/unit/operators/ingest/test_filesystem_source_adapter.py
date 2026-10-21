@@ -322,7 +322,7 @@ class TestFilesystemSourceAdapter:
         ("suffix", "mode"),
         [(".tar", "w"), (".tar.gz", "w:gz"), (".tgz", "w:gz")],
     )
-    def test_fetch_documents_expands_tar_formats(self, tmp_path, suffix, mode):
+    def test_fetch_documents_expands_tar_formats(self, tmp_path, monkeypatch, suffix, mode):
         archive_path = tmp_path / f"bundle{suffix}"
         _write_tar(archive_path, entries={"folder/report.txt": b"report"}, mode=mode)
         config = FilesystemSourceConfig(
@@ -338,9 +338,14 @@ class TestFilesystemSourceAdapter:
 
         assert len(docs) == 1
         assert docs[0].extension == ".txt"
+
+        def fail_if_archive_is_materialized(_path):
+            raise AssertionError("TAR archives must not be loaded into memory in full")
+
+        monkeypatch.setattr(type(archive_path), "read_bytes", fail_if_archive_is_materialized)
         assert adapter.fetch_binary_content(source_id=docs[0].source_url, provider_config={}) == b"report"
 
-    def test_fetch_documents_expands_single_stream_gzip(self, tmp_path):
+    def test_fetch_documents_expands_single_stream_gzip(self, tmp_path, monkeypatch):
         archive_path = tmp_path / "notes.txt.gz"
         with gzip.open(archive_path, mode="wb") as archive:
             archive.write(b"notes")
@@ -358,6 +363,11 @@ class TestFilesystemSourceAdapter:
         assert len(docs) == 1
         assert docs[0].name == "notes.txt"
         assert docs[0].size is None
+
+        def fail_if_archive_is_materialized(_path):
+            raise AssertionError("GZIP archives must not be loaded into memory in full")
+
+        monkeypatch.setattr(type(archive_path), "read_bytes", fail_if_archive_is_materialized)
         assert adapter.fetch_binary_content(source_id=docs[0].source_url, provider_config={}) == b"notes"
 
     def test_fetch_binary_content_reads_file_uri(self, tmp_path):
