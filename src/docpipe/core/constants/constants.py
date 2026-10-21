@@ -341,6 +341,13 @@ class EnvironmentVariables:
     DOCPIPE_LINEAGE_PRODUCER = "DOCPIPE_LINEAGE_PRODUCER"
     DOCPIPE_LINEAGE_STRICT = "DOCPIPE_LINEAGE_STRICT"
 
+    DOCPIPE_EVENT_STREAMING_ENABLED = "DOCPIPE_EVENT_STREAMING_ENABLED"
+    DOCPIPE_API_BASE_URL = "DOCPIPE_API_BASE_URL"
+    KAFKA_BOOTSTRAP_SERVERS = "KAFKA_BOOTSTRAP_SERVERS"
+    KAFKA_INPUT_TOPIC = "KAFKA_INPUT_TOPIC"
+    KAFKA_GROUP_ID = "KAFKA_GROUP_ID"
+    SCHEMA_REGISTRY_URL = "SCHEMA_REGISTRY_URL"
+
 
 class LineageConstants:
     """Constants and defaults for OpenLineage integration."""
@@ -354,7 +361,7 @@ class LineageConstants:
     DEFAULT_MODE = os.getenv(EnvironmentVariables.DOCPIPE_LINEAGE_MODE, MODE_FLOW)
     DEFAULT_NAMESPACE = os.getenv(EnvironmentVariables.DOCPIPE_LINEAGE_NAMESPACE, "docpipe://local")
     DEFAULT_PRODUCER = os.getenv(
-        EnvironmentVariables.DOCPIPE_LINEAGE_PRODUCER, "https://github.com/IBM/docling-pipelines"
+        EnvironmentVariables.DOCPIPE_LINEAGE_PRODUCER, "https://github.com/docling-project/docling-pipelines"
     )
     DEFAULT_STRICT = os.getenv(EnvironmentVariables.DOCPIPE_LINEAGE_STRICT, "false")
 
@@ -374,13 +381,17 @@ class LineageConstants:
     DOCUMENTATION_JOB_FACET_URL = "https://openlineage.io/spec/facets/1-0-0/DocumentationJobFacet.json"
 
     # Custom facet schema URLs
-    DOCPIPE_STATUS_FACET_URL = "https://github.com/IBM/docling-pipelines/schemas/docpipe-status-facet-1-0-0.json"
-    DOCPIPE_PROGRESS_FACET_URL = "https://github.com/IBM/docling-pipelines/schemas/docpipe-progress-facet-1-0-0.json"
+    DOCPIPE_STATUS_FACET_URL = (
+        "https://github.com/docling-project/docling-pipelines/schemas/docpipe-status-facet-1-0-0.json"
+    )
+    DOCPIPE_PROGRESS_FACET_URL = (
+        "https://github.com/docling-project/docling-pipelines/schemas/docpipe-progress-facet-1-0-0.json"
+    )
     DOCPIPE_NODE_STATS_FACET_URL = (
-        "https://github.com/IBM/docling-pipelines/spec/facets/1-0-0/DocpipeNodeStatsFacet.json"
+        "https://github.com/docling-project/docling-pipelines/spec/facets/1-0-0/DocpipeNodeStatsFacet.json"
     )
     DOCPIPE_NODE_STATUS_FACET_URL = (
-        "https://github.com/IBM/docling-pipelines/spec/facets/1-0-0/DocpipeNodeStatusFacet.json"
+        "https://github.com/docling-project/docling-pipelines/spec/facets/1-0-0/DocpipeNodeStatusFacet.json"
     )
 
 
@@ -393,6 +404,14 @@ class ServiceConstants:
 
     # Embeddings batch processing
     DEFAULT_EMBEDDINGS_BATCH_SIZE = 32  # Default batch size for embeddings generation
+    # Default number of embedding sub-batch requests kept in flight at once for HTTP-based
+    # providers (LiteLLM). Kept low so a single operator stays well below typical hosted-API
+    # rate limits; a local Ollama server queues requests beyond its own OLLAMA_NUM_PARALLEL.
+    DEFAULT_EMBEDDINGS_MAX_CONCURRENT_REQUESTS = 4
+    # watsonx.ai embeddings: texts per request, and requests in flight (the service enforces
+    # a per-instance limit of 8 req/s, so concurrency stays opt-in).
+    DEFAULT_WATSONX_EMBEDDINGS_BATCH_SIZE = 800
+    DEFAULT_WATSONX_EMBEDDINGS_MAX_CONCURRENT_REQUESTS = 1
 
 
 class ProviderConstants:
@@ -471,6 +490,7 @@ class Metrics:
         FAILED_DOCS = "failed_docs"
         SKIPPED_DOCS_COUNT = "skipped_docs_count"
         SKIPPED_DOCS = "skipped_docs"
+        DOCUMENT_URL = "document_url"
         TOTAL_PAGES_CONVERTED = "total_pages_converted"
         NODE_STATUS = "node_status"
         UNPROCESSED_DOC_COUNT = "unprocessed_doc_count"
