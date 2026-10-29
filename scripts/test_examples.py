@@ -75,6 +75,7 @@ class ExampleTest:
     requires_ollama: bool = False
     requires_opensearch: bool = False
     requires_env: list[str] | None = None
+    requires_any_env: list[str] | None = None
     expected_outputs: list[str] | None = None
     timeout: int = 60
 
@@ -336,7 +337,7 @@ class ExampleTester:
                 name="Milvus Integration",
                 path=self.examples_dir / "milvus_integration_example.py",
                 category=TestCategory.OPERATORS,
-                requires_env=["MILVUS_URI", "MILVUS_TOKEN"],
+                requires_any_env=["MILVUS_URI", "MILVUS_HOST"],
                 expected_outputs=["Example 1: Basic Document Indexing"],
                 timeout=180,
             ),
@@ -377,6 +378,19 @@ class ExampleTester:
             missing = [env for env in test.requires_env if not os.getenv(env)]
             if missing:
                 return False, f"Missing environment variables: {', '.join(missing)}"
+
+        if test.requires_any_env:
+            import os
+
+            from dotenv import dotenv_values
+
+            configured = {
+                **dotenv_values(self.repo_root / ".env"),
+                **os.environ,
+            }
+            if not any(configured.get(env) for env in test.requires_any_env):
+                choices = ", ".join(test.requires_any_env)
+                return False, f"Missing any of these environment variables: {choices}"
 
         # Check file exists
         if not test.path.exists():
@@ -501,6 +515,8 @@ class ExampleTester:
                 print("  Requires: OpenSearch")
             if test.requires_env:
                 print(f"  Requires: {', '.join(test.requires_env)}")
+            if test.requires_any_env:
+                print(f"  Requires any of: {', '.join(test.requires_any_env)}")
 
             result = self.run_test(test=test)
             self.results.append(result)

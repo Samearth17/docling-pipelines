@@ -65,8 +65,7 @@ async def test_web_adapter():
     logger.info("Message: %s", message)
 
     if not success:
-        logger.error("Connection test failed. Exiting.")
-        return
+        raise RuntimeError(f"Connection test failed: {message}")
 
     # Fetch documents
     logger.info("\n=== Fetching Documents ===")
@@ -118,8 +117,7 @@ async def test_multiple_urls():
     logger.info("Message:\n%s", message)
 
     if not success:
-        logger.error("Connection test failed. Exiting.")
-        return
+        raise RuntimeError(f"Connection test failed: {message}")
 
     # Fetch documents
     logger.info("\n=== Fetching Documents from Multiple URLs ===")

@@ -65,6 +65,10 @@ def test_registered_examples_use_their_actual_default_requirements_and_output() 
     assert extract.requires_env is None
     assert extract.expected_outputs == ["EXTRACT OPERATOR"]
 
+    milvus = tests_by_name["Milvus Integration"]
+    assert milvus.requires_env is None
+    assert milvus.requires_any_env == ["MILVUS_URI", "MILVUS_HOST"]
+
 
 def test_missing_example_is_skipped_with_a_reason(tmp_path: Path) -> None:
     tester = ExampleTester(dry_run=False)
@@ -113,3 +117,68 @@ def test_nonzero_example_is_reported_as_failed(tmp_path: Path) -> None:
 
     assert result.status is ExampleStatus.FAILED
     assert result.error == "Non-zero exit code: 2"
+
+
+def test_web_example_connection_failure_is_reported_as_failed(tmp_path: Path) -> None:
+    tester = ExampleTester(dry_run=False)
+    registered = {test.name: test for test in tester.define_tests()}["Web Adapter"]
+    wrapper = tmp_path / "web_adapter_failure.py"
+    wrapper.write_text(
+        "\n".join(
+            [
+                "import asyncio",
+                "import sys",
+                f"sys.path.insert(0, {str(tester.repo_root)!r})",
+                "from examples.connectors import test_web_adapter as example",
+                "async def reject_connection(self, *, config):",
+                "    return False, 'connection refused'",
+                "example.WebPageSourceAdapter.test_connection = reject_connection",
+                "asyncio.run(example.main())",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    test = ExampleTest(
+        name=registered.name,
+        path=wrapper,
+        category=registered.category,
+        expected_outputs=registered.expected_outputs,
+        timeout=registered.timeout,
+    )
+
+    result = tester.run_test(test=test)
+
+    assert result.status is ExampleStatus.FAILED
+    assert "connection refused" in result.output
+
+
+def test_milvus_prerequisite_accepts_exported_uri_without_token(monkeypatch) -> None:
+    tester = ExampleTester(dry_run=False)
+    test = {test.name: test for test in tester.define_tests()}["Milvus Integration"]
+    monkeypatch.setenv("MILVUS_URI", "https://milvus.example.test")
+    monkeypatch.delenv("MILVUS_HOST", raising=False)
+    monkeypatch.delenv("MILVUS_TOKEN", raising=False)
+
+    assert tester.check_prerequisites(test=test) == (True, None)
+
+
+def test_milvus_prerequisite_accepts_dotenv_standalone_host(monkeypatch, tmp_path: Path) -> None:
+    tester = ExampleTester(dry_run=False)
+    tester.repo_root = tmp_path
+    example = tmp_path / "examples" / "milvus_integration_example.py"
+    example.parent.mkdir()
+    example.write_text("", encoding="utf-8")
+    (tmp_path / ".env").write_text(
+        "MILVUS_HOST=milvus.example.test\nMILVUS_PORT=19530\n",
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("MILVUS_URI", raising=False)
+    monkeypatch.delenv("MILVUS_HOST", raising=False)
+    test = ExampleTest(
+        name="Milvus Integration",
+        path=example,
+        category=ExampleCategory.OPERATORS,
+        requires_any_env=["MILVUS_URI", "MILVUS_HOST"],
+    )
+
+    assert tester.check_prerequisites(test=test) == (True, None)
