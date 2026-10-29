@@ -182,3 +182,23 @@ def test_milvus_prerequisite_accepts_dotenv_standalone_host(monkeypatch, tmp_pat
     )
 
     assert tester.check_prerequisites(test=test) == (True, None)
+
+
+def test_milvus_prerequisite_skips_without_uri_or_host(monkeypatch, tmp_path: Path) -> None:
+    tester = ExampleTester(dry_run=False)
+    tester.repo_root = tmp_path
+    example = tmp_path / "milvus_integration_example.py"
+    example.write_text("", encoding="utf-8")
+    monkeypatch.delenv("MILVUS_URI", raising=False)
+    monkeypatch.delenv("MILVUS_HOST", raising=False)
+    test = ExampleTest(
+        name="Milvus Integration",
+        path=example,
+        category=ExampleCategory.OPERATORS,
+        requires_any_env=["MILVUS_URI", "MILVUS_HOST"],
+    )
+
+    assert tester.check_prerequisites(test=test) == (
+        False,
+        "Missing any of these environment variables: MILVUS_URI, MILVUS_HOST",
+    )
